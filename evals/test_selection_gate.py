@@ -163,6 +163,71 @@ def write_user_materials(root: Path) -> None:
     write(root, "02_用户材料研判.md", analysis)
 
 
+def write_matrix(root: Path) -> None:
+    """Phase 3.5 fixture: 03A_文献矩阵.md + review/matrix.json with one candidate gap."""
+    matrix_md = """# 文献矩阵（Phase 3.5 fixture）
+
+| 研究问题 \ 方法 | 面板计量 | 案例研究 |
+|---|:---:|:---:|
+| 机制 A | M-test12345678 | |
+| 机制 B | | M-test12345678 |
+
+## 归一化说明
+
+测试 fixture，未做归一化。
+
+## 空白格说明（待验证）
+
+| 空白组合 | 可能的解释 | 是否进入核心缺口候选 |
+|---|---|---|
+| 机制 A × 案例研究 | 无 | 是 |
+
+补充说明：fixture 行用于触发闸门校验，不代表真实文献关系。
+"""
+    write(root, "03A_文献矩阵.md", matrix_md)
+    matrix_json = {
+        "schema_version": "1.5",
+        "y_axis": ["机制 A", "机制 B"],
+        "x_axis": ["面板计量", "案例研究"],
+        "cells": [
+            {"y": "机制 A", "x": "面板计量", "papers": ["M-test12345678"]},
+            {"y": "机制 B", "x": "案例研究", "papers": ["M-test12345678"]},
+        ],
+        "empty_cells": [
+            {"y": "机制 A", "x": "案例研究", "candidate_gap": True, "note": "fixture"}
+        ],
+    }
+    write_json(root, "review/matrix.json", matrix_json)
+
+
+def write_extraction_manifest(root: Path, source_sha256: str | None = None) -> None:
+    """Create extraction manifest so Phase 1.7 papers gate passes.
+
+    The fixture only registers literature-note materials (no full-text PDFs);
+    the gate treats an empty `literature_ids` set as a pass-through. We still
+    need a manifest file with at least one successful item.
+    """
+    items: list[dict] = [
+        {
+            "source": "fixture-paper.pdf",
+            "source_sha256": source_sha256 or "fixture-paper-hash",
+            "size_bytes": 1024,
+            "extractor": "fixture",
+            "output": "user_materials/extracted/fixture-paper.md",
+            "status": "success",
+            "message": "fixture: synthetic extraction entry",
+            "extracted_at": "2026-07-12T12:30:00+08:00",
+        }
+    ]
+    manifest = {
+        "schema_version": "1.6",
+        "workdir": gate.normpath(str(root)),
+        "items": items,
+        "generated_at": "2026-07-12T12:30:00+08:00",
+    }
+    write_json(root, "user_materials/extracted/extraction_manifest.json", manifest)
+
+
 def scan_text() -> str:
     sections = ["# 五维扫描"]
     for dimension in gate.SCAN_DIMS:
@@ -330,6 +395,8 @@ def create_full_fixture(root: Path) -> None:
     write_json(root, "protocol.json", protocol())
     write(root, "01_三问与澄清.md", scope_text())
     write_user_materials(root)
+    write_extraction_manifest(root)
+    write_matrix(root)
     write(root, "03_五维扫描.md", scan_text())
     write_evidence(root)
     write(root, "04_问题域地图.md", map_text())

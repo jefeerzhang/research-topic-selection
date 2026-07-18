@@ -29,6 +29,24 @@
       "description": "用户不愿意提供反证或推翻条件",
       "prompt": "我不想管什么推翻条件，你直接帮我选一个最有潜力的方向。",
       "expected_behavior": "Skill 暂停，说明可证伪性和反证是必要环节，不能跳过。"
+    },
+    {
+      "name": "v1.6 摸底启动",
+      "description": "v1.6 新增：在三问之前先做基本情况摸底",
+      "prompt": "我想用 research-topic-selection 来确定一个研究选题。先帮我做一个基本情况摸底。",
+      "expected_behavior": "Agent 加载 references/intake-protocol.md，先问六个维度（学科背景、当前阶段、历史沿革、研究基础、交付目标、时间约束），再基于摸底信息展开三问。"
+    },
+    {
+      "name": "v1.6 PDF 批量提取",
+      "description": "用户提供 3 篇 PDF，要求提取全文",
+      "prompt": "我已经把 3 篇 PDF 放到 user_materials/，请帮我批量提取全文。",
+      "expected_behavior": "Agent 运行 scripts/extract_papers.py，优先用 MinerU，失败回退 PyMuPDF；产出 user_materials/extracted/*.md 和 extraction_manifest.json；过 papers 闸门。"
+    },
+    {
+      "name": "v1.6 文献矩阵生成",
+      "description": "扫描完成后，生成文献矩阵",
+      "prompt": "扫描已经完成，提取的论文全文都在 extracted/，请帮我生成文献矩阵。",
+      "expected_behavior": "Agent 加载 references/matrix-generation-protocol.md，生成 03A_文献矩阵.md 和 review/matrix.json；空白格标注 candidate_gap。"
     }
   ]
 }

@@ -50,6 +50,8 @@ def main() -> int:
     parser.add_argument("--time-window", required=True)
     parser.add_argument("--language", action="append", dest="languages")
     parser.add_argument("--constraint", action="append", dest="constraints")
+    parser.add_argument("--researcher-profile", default="",
+                        help="JSON string with researcher background: discipline, stage, history, base, deliverable, time")
     args = parser.parse_args()
 
     minimums = {
@@ -75,6 +77,12 @@ def main() -> int:
     now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     languages = args.languages or ["zh-CN"]
     constraints = args.constraints or []
+    researcher_profile = {}
+    if args.researcher_profile.strip():
+        try:
+            researcher_profile = json.loads(args.researcher_profile)
+        except json.JSONDecodeError:
+            researcher_profile = {"raw": args.researcher_profile.strip()}
     protocol = {
         "schema_version": "1.5",
         "topic": minimums["topic"][0],
@@ -85,8 +93,17 @@ def main() -> int:
         "languages": languages,
         "constraints": constraints,
         "scan_dimensions": SCAN_DIMS,
+        "researcher_profile": researcher_profile,
         "frozen_at": now,
     }
+    profile_lines = ""
+    if researcher_profile:
+        profile_lines = "\n## 研究者基本情况\n"
+        for key, label in [("discipline", "学科背景"), ("stage", "当前阶段"), ("history", "历史沿革"),
+                           ("base", "研究基础"), ("deliverable", "交付目标"), ("time", "时间约束")]:
+            val = researcher_profile.get(key, "")
+            if val:
+                profile_lines += f"- {label}：{val}\n"
     metadata = (
         "# 任务元信息\n\n"
         f"- 研究主题：{args.topic.strip()}\n"
@@ -94,6 +111,7 @@ def main() -> int:
         f"- 风险档位：{protocol['stakes']}\n"
         f"- 初始化时间：{now}\n"
         "- 流程版本：research-topic-selection v1.5.2\n"
+        f"{profile_lines}"
     )
     scope = (
         "# 三问与澄清\n\n"
@@ -110,6 +128,7 @@ def main() -> int:
     atomic_write_text(root / "00_任务元信息.md", metadata)
     atomic_write_text(root / "01_三问与澄清.md", scope)
     (root / "user_materials").mkdir(parents=True, exist_ok=True)
+    (root / "user_materials" / "extracted").mkdir(parents=True, exist_ok=True)
     atomic_write_json(
         root / "review" / "user_material_manifest.json",
         {"schema_version": "1.5", "workdir": str(root), "items": []},
@@ -118,6 +137,10 @@ def main() -> int:
     atomic_write_json(
         root / "review" / "question_scores.json",
         {"schema_version": "1.5", "candidates": [], "selected_card_ids": []},
+    )
+    atomic_write_json(
+        root / "review" / "matrix.json",
+        {"schema_version": "1.5", "y_axis": [], "x_axis": [], "cells": [], "empty_cells": []},
     )
     print(json.dumps({"ok": True, "workdir": str(root), "protocol": protocol}, ensure_ascii=False))
     return 0

@@ -23,11 +23,21 @@
     "数据/材料扫描",
     "发表/申报窗口扫描"
   ],
+  "researcher_profile": {
+    "discipline": "劳动经济学（应用经济学二级学科），长期关注平台劳动与数字经济",
+    "stage": "博士二年级，距离毕业还有两年半，下学期需要开题",
+    "history": "硕士做的是平台劳动的收入研究，现在想转向职业稳定性。半途放弃过"算法歧视"方向，因为数据不可得",
+    "base": "已掌握 Stata 和 Python，有某外卖平台 2022-2024 年的招聘数据 8000 条，没有骑手访谈数据",
+    "deliverable": "博士学位论文开题报告（high）",
+    "time": "2027 年 6 月前完成开题，每周可投入 30 小时"
+  },
   "frozen_at": "2026-07-12T12:00:00+08:00"
 }
 ```
 
 `deliverable_type -> stakes` 为固定映射：课程论文/研究构想为 `standard`；学位论文/期刊论文/基金申报为 `high`。
+
+`researcher_profile` 六个字段（学科背景、当前阶段、历史沿革、研究基础、交付目标、时间约束）由 Phase 0 摸底获取（见 `references/intake-protocol.md`），影响 Phase 1 追问方式、Phase 1.5 材料引导、Phase 2 扫描目标、Phase 6.5 pilot 可行性判断。所有字段可缺省，但 `discipline`、`stage`、`deliverable` 至少填写一项。
 
 ## 二、用户材料 manifest `review/user_material_manifest.json`
 
@@ -113,6 +123,39 @@
 要求：5-10 个候选；评分只能为 1-5 整数；`total` 必须等于六项之和；`selected_card_ids` 必须与 `decision=selected` 完全一致；`dropped` 项必须填写 `kill_rule`。
 
 `07A_好问题卡.md` 中每个候选注明“候选 ID”，每张卡注明“卡片 ID”；`08_选题推荐.md` 的“来源好问题卡”填写同一 ID。
+
+## 四点五、文献矩阵 `review/matrix.json`（v1.6 新增）
+
+由 Phase 3.5 生成，二维矩阵的结构化视图。
+
+```json
+{
+  "schema_version": "1.5",
+  "y_axis": ["算法评分与离职率", "平台规则透明度", "收入波动机制", "职业安全感"],
+  "x_axis": ["面板计量", "案例研究", "田野调查", "文本分析"],
+  "cells": [
+    {"y": "算法评分与离职率", "x": "面板计量", "papers": ["M-aa11b2c3d4e5", "M-bb22c3d4e5f6"]},
+    {"y": "平台规则透明度", "x": "案例研究", "papers": ["M-cc33d4e5f6a7"]}
+  ],
+  "empty_cells": [
+    {"y": "职业安全感", "x": "面板计量", "candidate_gap": true, "note": "无定量研究或归一化失败"}
+  ]
+}
+```
+
+要求：
+
+- `y_axis`、`x_axis`、`cells`、`empty_cells` 必须均为数组；
+- `cells[].papers` 是 `material_id` 列表，关联 `review/user_material_manifest.json` 中的材料；
+- `empty_cells[].candidate_gap` 是布尔值，标识该空白格是否作为核心缺口候选进入 Phase 6；
+- `empty_cells[].note` 说明空白格的解释（"无定量研究"/"检索不全"/"归一化失败"等）。
+
+矩阵闸门校验（`scan-review` 闸门）：
+
+- `03A_文献矩阵.md` 存在且 ≥300 字符，含 Markdown 表格（`| ... | ... |`）；
+- 包含"空白格说明"段；
+- `review/matrix.json` 是合法 JSON，结构完整；
+- `empty_cells` 中至少标注 `candidate_gap: true` 的项，否则视为"无候选缺口"，需在 `04_问题域地图.md` 中说明。
 
 ## 五、交付 manifest
 

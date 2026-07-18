@@ -30,6 +30,8 @@ ENTER_ALIASES = {
     "scope": "scope",
     "1.5": "materials",
     "materials": "materials",
+    "1.7": "papers",
+    "papers": "papers",
     "2": "scan",
     "scan": "scan",
     "4": "scan-review",
@@ -92,7 +94,9 @@ REVIEW_BINDINGS = {
         "02_用户材料研判.md",
         "03_五维扫描.md",
         "04_问题域地图.md",
+        "03A_文献矩阵.md",
         "review/evidence_registry.jsonl",
+        "review/matrix.json",
         "review/user_material_manifest.json",
     ],
     "topics": [
@@ -637,8 +641,50 @@ def check_materials(workdir: str) -> None:
     check_user_materials(workdir)
 
 
-def check_scan(workdir: str) -> None:
+def check_papers(workdir: str) -> None:
     check_materials(workdir)
+    manifest_rel = "user_materials/extracted/extraction_manifest.json"
+    manifest_path = os.path.join(workdir, manifest_rel)
+    if not os.path.isfile(manifest_path):
+        raise GateFail(f"缺失提取清单: {manifest_rel}")
+    try:
+        with open(manifest_path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        raise GateFail(f"提取清单 JSON 解析失败: {exc}") from exc
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        raise GateFail("提取清单 items 必须是数组")
+    successful = [item for item in items if isinstance(item, dict) and item.get("status") == "success"]
+    if not successful:
+        raise GateFail("Phase 1.7：至少需要 1 篇文献成功提取")
+    mat_manifest = load_json_rel(workdir, "review/user_material_manifest.json")
+    literature_ids = {
+        item.get("material_id")
+        for item in mat_manifest.get("items", [])
+        if isinstance(item, dict) and item.get("category") == "literature"
+    }
+    if literature_ids:
+        extracted_hashes = {
+            item.get("source_sha256")
+            for item in successful
+            if item.get("source_sha256")
+        }
+        lit_hashes = {
+            item.get("sha256")
+            for item in mat_manifest.get("items", [])
+            if isinstance(item, dict) and item.get("category") == "literature" and item.get("sha256")
+        }
+        missing = lit_hashes - extracted_hashes
+        if missing:
+            preview = sorted(missing)[:3]
+            raise GateFail(
+                f"Phase 1.7：以下 category=literature 材料未成功提取（请在 02 研判中说明失败原因）: {preview}"
+            )
+
+
+def check_scan(workdir: str) -> None:
+    check_papers(workdir)
     txt = require_markers(workdir, "03_五维扫描.md", SCAN_DIMS + ["反确认偏差记录"])
     for marker in SCAN_DIMS:
         require_section_after_marker(txt, "03_五维扫描.md", marker, min_chars=20)
@@ -653,6 +699,43 @@ def check_map(workdir: str) -> None:
         ["核心现实问题", "主要学术分支", "政策/实践变化", "可用数据", "潜在研究切口", "初步风险判断"],
     )
     require_file(workdir, "04_问题域地图.md", min_chars=300)
+
+
+def check_matrix(workdir: str) -> None:
+    """Phase 3.5 matrix gate (v1.6).
+
+    Validates `03A_文献矩阵.md` and `review/matrix.json`.
+    """
+    md_path = os.path.join(workdir, "03A_文献矩阵.md")
+    if not os.path.isfile(md_path):
+        raise GateFail("Phase 3.5：缺失 03A_文献矩阵.md")
+    md_text = open(md_path, "r", encoding="utf-8-sig", errors="ignore").read()
+    if len(md_text.strip()) < 300:
+        raise GateFail("Phase 3.5：03A_文献矩阵.md 内容过短")
+    if md_text.count(chr(10) + "|") < 2 and md_text.count("|") < 6:
+        raise GateFail("Phase 3.5：03A_文献矩阵.md 缺少 Markdown 表格")
+    if "空白格" not in md_text and "空单元格" not in md_text:
+        raise GateFail("Phase 3.5：03A_文献矩阵.md 缺少“空白格说明”段")
+    json_path = os.path.join(workdir, "review", "matrix.json")
+    if not os.path.isfile(json_path):
+        raise GateFail("Phase 3.5：缺失 review/matrix.json")
+    try:
+        with open(json_path, "r", encoding="utf-8-sig") as f:
+            matrix = json.load(f)
+    except json.JSONDecodeError as exc:
+        raise GateFail(f"Phase 3.5：review/matrix.json 解析失败: {exc}") from exc
+    if not isinstance(matrix, dict):
+        raise GateFail("Phase 3.5：review/matrix.json 必须是 object")
+    for key in ("y_axis", "x_axis", "cells", "empty_cells"):
+        if key not in matrix or not isinstance(matrix[key], list):
+            raise GateFail(f"Phase 3.5：review/matrix.json.{key} 必须是数组")
+    if not any(
+        isinstance(item, dict) and item.get("candidate_gap") is True
+        for item in matrix["empty_cells"]
+    ):
+        raise GateFail(
+            "Phase 3.5：empty_cells 至少需要 1 项 candidate_gap=true，否则需在 04_问题域地图.md 中说明"
+        )
 
 
 def check_literature(workdir: str) -> None:
@@ -776,12 +859,16 @@ def check_enter(workdir: str, enter: str) -> None:
     if target == "materials":
         check_materials(workdir)
         return
+    if target == "papers":
+        check_papers(workdir)
+        return
     if target == "scan":
         check_scan(workdir)
         return
     if target == "scan-review":
         check_scan(workdir)
         check_map(workdir)
+        check_matrix(workdir)
         verify_review(workdir, "scan")
         return
     if target == "literature":
