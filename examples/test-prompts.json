@@ -1,0 +1,34 @@
+{
+  "prompts": [
+    {
+      "name": "标准启动",
+      "description": "用户有完整材料，想做一个标准研究构想",
+      "prompt": "我想用 research-topic-selection 来确定一个研究选题。我的主题是：\"平台劳动者的算法管理与职业稳定性\"。我手头的材料包括：已有平台劳动文献笔记（Markdown，约 1.5 万字）、一份问卷设计经验（之前做过的非随机抽样）、公开招聘数据（某平台 2022-2024 年的岗位描述）。请用标准研究构想作为交付物，学科分支为实证量化，时间窗为 2022-2026，语言为中文。",
+      "expected_behavior": "Agent 调用 init_project.py 创建 workspace，生成冻结协议，并引导进入 scope 闸门。"
+    },
+    {
+      "name": "材料缺失",
+      "description": "用户没有材料，要求直接给题目",
+      "prompt": "给我几个新颖的科研选题，关于平台经济。",
+      "expected_behavior": "Skill 拒绝启动，说明必须先提供材料，并提示可接受的材料类型。"
+    },
+    {
+      "name": "纯头脑风暴",
+      "description": "用户只想 brainstorm",
+      "prompt": "帮我 brainstorm 一下平台劳动领域还有哪些研究缺口。",
+      "expected_behavior": "Skill 说明本流程不用于纯头脑风暴，如需灵感可先提供材料进入审计流程。"
+    },
+    {
+      "name": "scope 确认",
+      "description": "用户已完成初始化，想确认是否进入 scope",
+      "prompt": "我已经填完三问，请帮我检查能否进入 scope。",
+      "expected_behavior": "Agent 运行 selection_gate.py --enter scope，输出 PASS 或 FAIL 及原因。"
+    },
+    {
+      "name": "拒绝证据约束",
+      "description": "用户不愿意提供反证或推翻条件",
+      "prompt": "我不想管什么推翻条件，你直接帮我选一个最有潜力的方向。",
+      "expected_behavior": "Skill 暂停，说明可证伪性和反证是必要环节，不能跳过。"
+    }
+  ]
+}
